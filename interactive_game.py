@@ -18,15 +18,15 @@ text_rect.center = (screen_width / 2, screen_height / 2)
 
 running = True
 while running:
-	for event in pygame.event.get():
-		if event.type == pygame.QUIT:
-			running = False
+   for event in pygame.event.get():
+      if event.type == pygame.QUIT:
+         running = False
 
-	screen.fill((0, 0, 0))
+  screen.fill((0, 0, 0))
   screen.blit(text_surface, text_rect)
 
 	
-	pygame.display.flip()
+   pygame.display.flip()
 
 pygame.quit()
 sys.exit()
