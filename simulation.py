@@ -47,9 +47,7 @@ while loading:
 
   pygame.display.flip()
 
-
-
-# Define the input box properties
+gravity_values = [3.721, 8.87, 3.7, 24.79, 10.44]
 
 input_box_color = pygame.Color('white')
 box_width, box_height = 200, 60
@@ -57,18 +55,17 @@ box_spacing = 20
 info_box_width, info_box_height = 480, 250
 # Define the positions of the input boxes
 input = [
-    pygame.Rect(220, 20, box_width, box_height),  # Gravity
-    pygame.Rect(220, 150, box_width, box_height),  # Distance of Target
-    pygame.Rect(610, 20, box_width, box_height),  # Initial Velocity
-    pygame.Rect(610, 150, box_width, box_height),
-    pygame.Rect(1440, 530, info_box_width, info_box_height)
+  pygame.Rect(100, 100, box_width, box_height),  
+  pygame.Rect(350, 100, box_width, box_height),  
+  pygame.Rect(600, 100, box_width, box_height),  
+  pygame.Rect(1440, 530, info_box_width, info_box_height)
 ]
 
 # Create a font object for the label and input text
 font = pygame.font.Font(None, 36)
 
 # Define the label
-label = ["Gravity", "Air Resistance", "Initial Velocity", "Angle",""]
+label = ["Gravity", "Initial Velocity", "Angle",""]
 
 # Define the output label and their initial values
 output = ["Acceleration (y)", "Displacement", "Time Taken", "Current Velocity"]
@@ -86,14 +83,15 @@ projectile_movement = []
 
 # Input box state
 active_box = None
-input_text = ["9.81", "500", "30", "45",""]  
+grav_input = "9.81"
+input_text = ["9.81", "30", "45",""]  
+
 
 # Convert input texts to their respective values
 gravity = float(input_text[0])
-air_resistance = float(input_text[1])
-initial_velocity = float(input_text[2])
-launch_angle = math.radians(float(input_text[3]))
-info_box = str(input_text[4])
+initial_velocity = float(input_text[1])
+launch_angle = math.radians(float(input_text[2]))
+info_box = str(input_text[3])
 
 
 
@@ -119,13 +117,40 @@ class Button:
       # Return True if the button is clicked
       return self.rect.collidepoint(pos)
 
+class TickBox:
+  def __init__(self, x, y, width, height):
+    self.rect = pygame.Rect(x, y, width, height)
+    self.width = width
+    self.height = height
+    self.clicked = False
+  
+  def draw(self,screen):
+    pygame.draw.rect(screen, pygame.Color('black'), self.rect)
+    if self.clicked:
+      pygame.draw.circle(screen, pygame.Color('white'), self.rect.center, 5)
+
+  def is_clicked(self,pos):
+    if self.rect.collidepoint(pos):
+      self.clicked = True
+      return True
+    return False
+    
+
 # Create buttons
 start_button = Button(1000, 150, 300, 50, 'Start')
 stop_button = Button(1400, 150, 300, 50, 'Stop')
 exit_button = Button(1500, 825, 300, 50, 'Return to Mode Selection')
-stop_button.color = pygame.Color('red')
 start_button.color = pygame.Color('green')
+stop_button.color = pygame.Color('red')
 exit_button.color = pygame.Color('Black')
+
+tickboxes = [TickBox(1500, 380, 30, 20),
+             TickBox(1500, 430, 30, 20),
+             TickBox(1500, 480, 30, 20),
+             TickBox(1500, 530, 30, 20),
+             TickBox(1500, 580, 30, 20),
+             TickBox(1550, 630, 30, 20)]
+
 # Add a variable to track the paused state
 simulation_paused = False
 
@@ -177,12 +202,13 @@ simulations = [
   "",
   "Saturn",
   "",
-  "",
-  "Toggle 'air resistance' to model the affects it has "
+  "Air Resistance",
+
   ]
 
 start_point = []
 font = pygame.font.Font(None, 30)
+drag = 0
 
 simulation_surface = [font.render(simulation, True, pygame.Color('white')) for simulation in simulations]
 # Draw the equations on the screen
@@ -192,37 +218,19 @@ for i, simulation_surface in enumerate(simulation_surface):
 while running:
   delta_t = clock.tick(60) / 1000  
   screen.blit(bg, (0, 0))
+  
 
   # Update the values based on the input texts
   try:
       gravity = float(input_text[0])
-      air_resistance = float(input_text[1])
-      initial_velocity = float(input_text[2])
-      launch_angle = math.radians(float(input_text[3]))
+      initial_velocity = float(input_text[1])
+      launch_angle = math.radians(float(input_text[2]))
   except ValueError:
       # Handle the case where the input text is not a valid number
       gravity = 9.81  # Default value or previous valid value
-      air_resistance = 500  # Default value or previous valid value
       initial_velocity = 30  # Default value or previous valid value
       launch_angle = math.radians(45)  # Default value or previous valid value
 
-  error_grav = font.render("Gravity must be between 2 and 15", True, pygame.Color('red'))
-
-  error_ivel = font.render("Initial velocity must be between 30 and 150", True, pygame.Color('red'))
-
-  error_angle = font.render("Launch angle must be between 0 and 89", True, pygame.Color('red'))
-
-  if gravity < 2 or gravity > 15 or input_text[0] == "":
-    screen.blit(error_grav, (135, 100))
-    proj_running = False
-
-  elif initial_velocity < 30 or initial_velocity > 150 or input_text[2] == "":
-    screen.blit(error_ivel, (450, 100))
-    proj_running = False
-
-  elif launch_angle <= math.radians(0) or launch_angle > math.radians(89) or input_text[3] == "":
-    screen.blit(error_angle, (450, 220))
-    proj_running = False
 
 
 
@@ -230,68 +238,102 @@ while running:
       if event.type == pygame.QUIT:
           running = False
       elif event.type == pygame.MOUSEBUTTONDOWN:
-          if start_button.is_clicked(event.pos):
-             
-            if simulation_paused:
-                simulation_paused = False
-                proj_running = True
-            else:
-                  
-                if not proj_running:
-                    proj_running = True
-                    time_elapsed = 0  
-                    proj_pos = proj_initial_pos.copy()  
-                    projectile_movement.clear()
-          if stop_button.is_clicked(event.pos):
-              # Pause the simulation
-              simulation_paused = True
-              proj_running = False  # Stop the projectile's motion
-          active_box = None
-          for i, box in enumerate(input):
-              if box.collidepoint(event.pos):
-                  active_box = i
-                  break
-          if exit_button.is_clicked(event.pos):
-            # Exit the program
-            exec(open("menu.py").read())
+        active_box = None
+        for i, box in enumerate(input):
+            if box.collidepoint(event.pos):
+                active_box = i
+                break
+        for tickbox in tickboxes:
+          if tickbox.is_clicked(event.pos):
+            for other_tickbox in tickboxes:
+                if other_tickbox != tickbox:
+                    other_tickbox.clicked = False
+          if tickboxes[0].is_clicked(event.pos):
+            gravity = gravity_values[0]
+            input_text[0] = str(gravity)
+          elif tickboxes[1].is_clicked(event.pos):
+            gravity = gravity_values[1]
+            input_text[0] = str(gravity)
+          elif tickboxes[2].is_clicked(event.pos):
+            gravity = gravity_values[2]
+            input_text[0] = str(gravity)
+          elif tickboxes[3].is_clicked(event.pos):
+            gravity = gravity_values[3]
+            input_text[0] = str(gravity)
+          elif tickboxes[4].is_clicked(event.pos):
+            gravity = gravity_values[4]
+            input_text[0] = str(gravity)
+          elif tickboxes[5].is_clicked(event.pos):
+            drag = 500 if tickboxes[5].clicked else 0
+
+          
+            
+        if start_button.is_clicked(event.pos):
+          proj_running = True
+       
+          if simulation_paused:
+              simulation_paused = False
+              proj_running = True
+          else:
+              proj_running = True
+              time_elapsed = 0  
+              proj_pos = proj_initial_pos.copy()  
+              projectile_movement.clear()
+        if stop_button.is_clicked(event.pos):
+          # Pause the simulation
+          simulation_paused = True
+          proj_running = False  # Stop the projectile's motion
+        
+        if exit_button.is_clicked(event.pos):
+          # Exit the program
+          exec(open("menu.py").read())
+          
       elif event.type == pygame.KEYDOWN:
-          if active_box is not None:
-              if event.key == pygame.K_BACKSPACE:
-                  input_text[active_box] = input_text[active_box][:-1]
-              else:
-                  input_text[active_box] += event.unicode
-          # Add these lines to handle the up and down arrow keys
-          if event.key == pygame.K_UP:
-              playback_speed *= 2  # Double the playback speed
-          if event.key == pygame.K_DOWN:
-              playback_speed /= 2  # Halve the playback speed
-              if playback_speed < 0.1:  # prevent playback_speed from going too low
-                  playback_speed = 0.1
+        if active_box is not None:
+          if event.key == pygame.K_BACKSPACE:
+              input_text[active_box] = input_text[active_box][:-1]
+          else:
+              input_text[active_box] += event.unicode
+        if event.key == pygame.K_UP:
+          playback_speed *= 2  # Double the playback speed
+          if playback_speed > 8:
+            playback_speed = 8
+        if event.key == pygame.K_DOWN:
+          playback_speed /= 2  # Halve the playback speed
+          if playback_speed < 0.1:  # prevent playback_speed from going too low
+              playback_speed = 0.1
+      try:
+        gravity = float(input_text[0])
+      except ValueError:
+        gravity = 9.81  
 
   start_button.draw(screen, font)
   stop_button.draw(screen, font)
   exit_button.draw(screen, font)
+  
+  
   for i, box in enumerate(input):
-      pygame.draw.rect(screen, input_box_color, box)
-      label_surface = font.render(label[i], True, pygame.Color('white'))
-      screen.blit(label_surface, (box.x - label_surface.get_width() - 10, box.y + (box_height - label_surface.get_height()) // 2))
-      text_surface = font.render(input_text[i], True, pygame.Color('black'))
-      screen.blit(text_surface, (box.x + 5, box.y + 5))
+    pygame.draw.rect(screen, input_box_color, box)
+    label_surface = font.render(label[i], True, pygame.Color('white'))
+    screen.blit(label_surface, (box.x, box.y - label_surface.get_height() - 5))
+    text_surface = font.render(input_text[i], True, pygame.Color('black'))
+    screen.blit(text_surface, (box.x + 5, box.y + 5))
 
   # Draw the output box
   pygame.draw.rect(screen, o_box_color, o_box)
-
-  # Draw the equations in the output box below the calculations
+  
+  for tickbox in tickboxes:
+    tickbox.draw(screen)
   for i, simulation in enumerate(simulations):
       text_surface = font.render(simulation, True, pygame.Color('black'))
       screen.blit(text_surface, (o_box.x , o_box.y + 5 + (len(start_point) + i) * (font.get_height() + 5)))
 
 
-  # Only update the projectile's position and path if the simulation is not paused
-  if proj_running and not simulation_paused:
-      time_elapsed += delta_t * playback_speed  # Increment the time elapsed by dt * playback_speed
 
-      # Calculate the horizontal (x) and vertical (y) position of the projectile
+  if proj_running and not simulation_paused: 
+      time_elapsed += delta_t * playback_speed  
+
+    
       x_pos = initial_velocity * math.cos(launch_angle) * time_elapsed
       y_pos = initial_velocity * math.sin(launch_angle) * time_elapsed - (0.5 * gravity * time_elapsed ** 2)
 
@@ -305,21 +347,19 @@ while running:
       # Check if the projectile has reached the ground level or passed the target's x-coordinate
       if proj_pos[1] >= proj_initial_pos[1]: 
         proj_running = False
-        time_elapsed = 0
+        
         proj_pos = proj_initial_pos.copy()
         projectile_movement.clear()
 
       elif y_pos >= 515:
-          hit = "Target Missed"
           proj_running = False
-          time_elapsed = 0
+          
           proj_pos = proj_initial_pos.copy()
           projectile_movement.clear()
 
       elif proj_pos[0] >= 1405:
-        hit = "Target Missed"
         proj_running = False
-        time_elapsed = 0
+        
         proj_pos = proj_initial_pos.copy()
         projectile_movement.clear()
 
